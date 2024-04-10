@@ -1,0 +1,16 @@
+json_datapipeline:
+  outputs:
+    dev:
+      account: account locator
+      database: dbt_db
+      password: password
+      role: dbt_role
+      schema: sf
+      threads: 1
+      type: snowflake
+      user: user
+      warehouse: dbt_wh
+  target: dev
+  config:
+    send_anonymous_usage_stats: False
+    log_path: /tmp/dbt/logs
