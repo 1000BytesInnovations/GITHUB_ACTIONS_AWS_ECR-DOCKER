@@ -1,0 +1,10 @@
+sources:
+  - name: RAW
+    database: DBT_DB
+    schema: RAW
+    tables:
+      - name: RAW_LANDING_DATA
+      - name: RAW_MONTHLY_PASSENGER
+      - name: RAW_CARGO
+
+

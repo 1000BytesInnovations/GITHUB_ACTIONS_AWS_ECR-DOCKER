@@ -1,0 +1,34 @@
+Parameters:
+  RepositoryName:
+    Description: The name of the ECR repository
+    Type: String
+
+Resources:
+  repositorycreation:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ECR::Repository"
+    DeletionPolicy: "Delete"
+    Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: false
+      RepositoryName: !Ref RepositoryName
+      EncryptionConfiguration:
+        EncryptionType: "AES256"
+      RepositoryPolicyText:
+        Version: "2008-10-17"
+        Statement:
+          - Condition:
+              StringLike:
+                aws:sourceArn: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+            Action:
+              - "ecr:BatchGetImage"
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:SetRepositoryPolicy"
+              - "ecr:DeleteRepositoryPolicy"
+              - "ecr:GetRepositoryPolicy"
+            Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Sid: "LambdaECRImageRetrievalPolicy"
+      Tags: []
+      ImageTagMutability: "MUTABLE"

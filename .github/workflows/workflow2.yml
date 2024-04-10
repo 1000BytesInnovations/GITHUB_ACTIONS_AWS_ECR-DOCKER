@@ -1,0 +1,142 @@
+name: workflow 2
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+
+  deploy-infrastructure-ecr:
+    if: ${{ github.event.pull_request.merged }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}  # Remove this line if you don't have a session token
+          aws-region: us-east-1
+
+      - name: Deploy CloudFormation Stack
+        run: |
+          set -e
+          if ! aws cloudformation create-stack \
+            --stack-name stackr \
+            --template-body file://./aws_templates/ecr.yml \
+            --parameters \
+              ParameterKey=RepositoryName,ParameterValue=vk \
+            --capabilities CAPABILITY_NAMED_IAM; then
+            aws cloudformation update-stack \
+              --stack-name stackr \
+              --template-body file://./aws_templates/ecr.yml \
+              --parameters \
+                ParameterKey=RepositoryName,ParameterValue=vk \
+              --capabilities CAPABILITY_NAMED_IAM
+          fi
+      
+          PREV_STACK_STATUS=""
+          STACK_STATUS=$(aws cloudformation describe-stacks --stack-name stackr --query 'Stacks[0].StackStatus' --output text)
+          while [ "$STACK_STATUS" == "CREATE_IN_PROGRESS" ] || [ "$STACK_STATUS" == "UPDATE_IN_PROGRESS" ]; do
+            if [ "$PREV_STACK_STATUS" == "$STACK_STATUS" ]; then
+              echo "Stack operation completed with status: $STACK_STATUS"
+              break
+            fi
+            echo "Waiting for stack operation to complete..."
+            sleep 10
+            PREV_STACK_STATUS="$STACK_STATUS"
+            STACK_STATUS=$(aws cloudformation describe-stacks --stack-name stackr --query 'Stacks[0].StackStatus' --output text)
+          done
+      
+          if [ "$STACK_STATUS" != "CREATE_COMPLETE" ] && [ "$STACK_STATUS" != "UPDATE_COMPLETE" ]; then
+            echo "Stack operation failed with status: $STACK_STATUS"
+            exit 1
+          fi
+  build-and-push:
+    needs: deploy-infrastructure-ecr
+    if: ${{ github.event.pull_request.merged }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}  # Remove this line if you don't have a session token
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and Push Docker Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: vk:latest
+        run: |
+          docker build -t $ECR_REGISTRY/$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$IMAGE_TAG
+
+  deploy-infrastructure-ecs:
+    needs: build-and-push
+    if: ${{ github.event.pull_request.merged }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}  # Remove this line if you don't have a session token
+          aws-region: us-east-1
+
+      - name: Deploy CloudFormation Stack
+        run: |
+          set -e
+          if ! aws cloudformation create-stack \
+            --stack-name stacks \
+            --template-body file://./aws_templates/ecs.yml \
+            --parameters \
+              ParameterKey=ClusterName,ParameterValue=abx \
+              ParameterKey=RoleName,ParameterValue=vk_ecs_role \
+              ParameterKey=RepositoryName,ParameterValue=vk \
+            --capabilities CAPABILITY_NAMED_IAM; then
+            aws cloudformation update-stack \
+              --stack-name stacks \
+              --template-body file://./aws_templates/ecs.yml \
+              --parameters \
+                ParameterKey=ClusterName,ParameterValue=abx \
+                ParameterKey=RoleName,ParameterValue=vk_ecs_role \
+                ParameterKey=RepositoryName,ParameterValue=vk \
+              --capabilities CAPABILITY_NAMED_IAM
+          fi
+      
+          PREV_STACK_STATUS=""
+          STACK_STATUS=$(aws cloudformation describe-stacks --stack-name stacks --query 'Stacks[0].StackStatus' --output text)
+          while [ "$STACK_STATUS" == "CREATE_IN_PROGRESS" ] || [ "$STACK_STATUS" == "UPDATE_IN_PROGRESS" ]; do
+            if [ "$PREV_STACK_STATUS" == "$STACK_STATUS" ]; then
+              echo "Stack operation completed with status: $STACK_STATUS"
+              break
+            fi
+            echo "Waiting for stack operation to complete..."
+            sleep 10
+            PREV_STACK_STATUS="$STACK_STATUS"
+            STACK_STATUS=$(aws cloudformation describe-stacks --stack-name stacks --query 'Stacks[0].StackStatus' --output text)
+          done
+      
+          if [ "$STACK_STATUS" != "CREATE_COMPLETE" ] && [ "$STACK_STATUS" != "UPDATE_COMPLETE" ]; then
+            echo "Stack operation failed with status: $STACK_STATUS"
+            exit 1
+          fi
