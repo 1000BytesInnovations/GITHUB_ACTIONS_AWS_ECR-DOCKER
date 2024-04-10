@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: geography_dim
+    tests:
+      - unique:
+          column_name: GEO_REGION
+  - name: aircraft_dim
+    tests:
+      - unique:
+          column_name: AIRCRAFT_MODEL
+  - name: date_dim
+    tests:
+      - unique:
+          column_name: time_id
+  - name: airline_dim
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - START_DATE
+            - AIRLINE_IATA_CODE
+  - name: landing_fact
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: 
+          - ACTIVITY_PERIOD_ID 
+          - OPERATING_AIRLINE_IATA_CODE_ID
+          - PUBLISHED_AIRLINE_IATA_CODE_ID
+          - GEO_REGION_ID
+          - AIRCRAFT_MODEL_ID
+  - name: passenger_fact
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: 
+          - ACTIVITY_PERIOD_ID 
+          - OPERATING_AIRLINE_IATA_CODE_ID
+          - PUBLISHED_AIRLINE_IATA_CODE_ID
+          - GEO_REGION_ID
+  - name: cargo_fact
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: 
+          - ACTIVITY_PERIOD_ID 
+          - OPERATING_AIRLINE_IATA_CODE_ID
+          - PUBLISHED_AIRLINE_IATA_CODE_ID
+          - GEO_REGION_ID
