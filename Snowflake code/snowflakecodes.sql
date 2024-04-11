@@ -28,12 +28,12 @@ CREATE or replace STORAGE INTEGRATION s3_int
   TYPE = EXTERNAL_STAGE
   STORAGE_PROVIDER = 'S3'
   ENABLED = TRUE
-  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::937823852955:role/snow_role_vk'          --creating storage integration
+  STORAGE_AWS_ROLE_ARN = 'aws role arn'          --creating storage integration
   STORAGE_ALLOWED_LOCATIONS = ('s3://sandbox-learning-01/vk')
   STORAGE_AWS_EXTERNAL_ID = 'externalid1';
 
   
-  desc STORAGE INTEGRATION s3_int; --get the "STORAGE_AWS_IAM_USER_ARN"
+  desc STORAGE INTEGRATION s3_int; --to get the "STORAGE_AWS_IAM_USER_ARN"
 
 
 
