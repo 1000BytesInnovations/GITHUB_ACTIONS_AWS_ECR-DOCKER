@@ -23,8 +23,3 @@ jobs:
         uses: mwhitaker/dbt-action@master
         with:
           dbt_command: "dbt compile --profiles-dir ."
-
-      - name: dbt-action (run)
-        uses: mwhitaker/dbt-action@master
-        with:
-          dbt_command: "dbt run --profiles-dir ."
